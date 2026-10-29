@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "oAZqET6E45I=",
+  "dgSpecHash": "YggipePKIfk=",
   "success": true,
-  "projectFilePath": "C:\\Users\\User\\Desktop\\KTX_AI_KT2_KT3_project_FINAL\\KtxAI.Api\\KtxAI.Api.csproj",
+  "projectFilePath": "C:\\Users\\User\\Documents\\GitHub\\he-thong-quan-ly-ktx\\KtxAI.Api.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\User\\.nuget\\packages\\dotnetenv\\3.1.1\\dotnetenv.3.1.1.nupkg.sha512",
     "C:\\Users\\User\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",

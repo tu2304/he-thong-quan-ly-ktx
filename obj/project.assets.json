@@ -7918,11 +7918,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\User\\Desktop\\KTX_AI_KT2_KT3_project_FINAL\\KtxAI.Api\\KtxAI.Api.csproj",
+      "projectUniqueName": "C:\\Users\\User\\Documents\\GitHub\\he-thong-quan-ly-ktx\\KtxAI.Api.csproj",
       "projectName": "KtxAI.Api",
-      "projectPath": "C:\\Users\\User\\Desktop\\KTX_AI_KT2_KT3_project_FINAL\\KtxAI.Api\\KtxAI.Api.csproj",
+      "projectPath": "C:\\Users\\User\\Documents\\GitHub\\he-thong-quan-ly-ktx\\KtxAI.Api.csproj",
       "packagesPath": "C:\\Users\\User\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\User\\Desktop\\KTX_AI_KT2_KT3_project_FINAL\\KtxAI.Api\\obj\\",
+      "outputPath": "C:\\Users\\User\\Documents\\GitHub\\he-thong-quan-ly-ktx\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
