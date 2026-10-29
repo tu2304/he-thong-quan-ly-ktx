@@ -10,7 +10,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/hopdong")]
-    [Authorize]
+    [Authorize(Roles = "QuanLy,KeToan,SinhVien")]
     public class HopDongController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -43,6 +43,12 @@ namespace KtxAI.Api.Controllers
                 .Include(h => h.Giuong).ThenInclude(g => g.Phong)
                 .AsQueryable();
 
+            if (User.IsInRole("SinhVien"))
+            {
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                query = query.Where(h => h.SinhVien.NguoiDungId.ToString() == userId);
+            }
+
             if (sinhVienId.HasValue) query = query.Where(h => h.SinhVienId == sinhVienId);
             if (phongId.HasValue) query = query.Where(h => h.Giuong.PhongId == phongId);
             if (trangThai.HasValue) query = query.Where(h => h.TrangThai == trangThai);
@@ -74,6 +80,9 @@ namespace KtxAI.Api.Controllers
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (h == null) throw AppException.NotFound($"Không tìm thấy hợp đồng có id = {id}.");
+            if (User.IsInRole("SinhVien") && h.SinhVien.NguoiDungId.ToString() !=
+                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+                throw AppException.NotFound("Không tìm thấy hợp đồng.");
             return Ok(ApiResponse<HopDongResponseDto>.Ok(ToDto(h)));
         }
 

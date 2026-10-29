@@ -25,7 +25,13 @@ function appendMessage(role, text, sources = [], isWarning = false) {
   if (sources.length > 0) {
     const src = document.createElement("div");
     src.className = "msg-sources";
-    src.innerHTML = "Nguồn: " + sources.map((s) => `<span class="badge">${s}</span>`).join(" ");
+    src.append("Nguồn: ");
+    sources.forEach((source) => {
+      const badge = document.createElement("span");
+      badge.className = "badge me-1";
+      badge.textContent = source;
+      src.appendChild(badge);
+    });
     bubble.appendChild(src);
   }
 
@@ -37,9 +43,19 @@ function appendMessage(role, text, sources = [], isWarning = false) {
 // Lời chào ban đầu, giúp người dùng biết chatbot dùng để làm gì (tiêu chí #10 - UX tự nhiên).
 appendMessage(
   "ai",
-  "Chào bạn! Mình là trợ lý AI hỏi đáp Nội quy Ký túc xá. Bạn có thể hỏi mình về giờ giới nghiêm, " +
-  "quy định khách ra vào, vệ sinh phòng ở, v.v. Câu trả lời chỉ mang tính tham khảo."
+  "Chào bạn! Mình hỗ trợ tra cứu hồ sơ, phòng ở, hợp đồng, hóa đơn và phản ánh của chính bạn; " +
+  "hướng dẫn đăng ký, chuyển/trả phòng, nộp tiền và gửi phản ánh. Bạn cũng có thể hỏi phòng trống và nội quy KTX."
 );
+
+const suggestions = document.getElementById("studentSuggestions");
+if (user?.vaiTro !== "SinhVien") suggestions.hidden = true;
+suggestions.querySelectorAll("[data-question]").forEach(button => {
+  button.addEventListener("click", () => {
+    if (btnSend.disabled) return;
+    chatInput.value = button.dataset.question;
+    chatForm.requestSubmit();
+  });
+});
 
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();

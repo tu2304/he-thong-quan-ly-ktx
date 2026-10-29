@@ -15,13 +15,13 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     localStorage.setItem("ktx_token", res.data.token);
     localStorage.setItem("ktx_user", JSON.stringify(res.data));
 
-    window.location.href = "/dashboard.html";
+    window.location.href = homePage(res.data.vaiTro);
   } catch (err) {
     errorBox.innerText = "Email hoặc mật khẩu không đúng. Vui lòng thử lại.";
   }
 });
 
 // Nếu đã đăng nhập rồi thì vào thẳng dashboard
-if (getToken()) {
-  window.location.href = "/dashboard.html";
+if (getToken() && ["QuanLy", "KeToan", "SinhVien"].includes(getCurrentUser()?.vaiTro)) {
+  window.location.href = homePage();
 }

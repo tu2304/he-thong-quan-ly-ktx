@@ -60,7 +60,7 @@ namespace KtxAI.Api.Controllers
 
         // GET /api/auth/me — kiểm tra token còn hợp lệ và lấy thông tin người dùng hiện tại
         [HttpGet("me")]
-        [Authorize]
+        [Authorize(Roles = "QuanLy,KeToan,SinhVien")]
         public IActionResult Me()
         {
             var hoTen = User.Identity?.Name;

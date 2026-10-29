@@ -9,13 +9,41 @@ function getToken() {
 
 function getCurrentUser() {
   const raw = localStorage.getItem("ktx_user");
-  return raw ? JSON.parse(raw) : null;
+  try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+
+const pageRoles = {
+  "/dashboard.html": ["QuanLy", "KeToan"],
+  "/sinhvien.html": ["QuanLy"],
+  "/phong.html": ["QuanLy", "KeToan", "SinhVien"],
+  "/phananh.html": ["QuanLy", "SinhVien"],
+  "/phi.html": ["QuanLy", "KeToan", "SinhVien"],
+  "/chatbot.html": ["QuanLy", "KeToan", "SinhVien"],
+};
+
+function homePage(role = getCurrentUser()?.vaiTro) {
+  return role === "SinhVien" ? "/phi.html" : "/dashboard.html";
 }
 
 function requireLogin() {
-  if (!getToken()) {
-    window.location.href = "/index.html";
+  const role = getCurrentUser()?.vaiTro;
+  if (!getToken() || !["QuanLy", "KeToan", "SinhVien"].includes(role)) {
+    window.location.replace("/index.html");
+    throw new Error("Login required");
   }
+  if (pageRoles[window.location.pathname] && !pageRoles[window.location.pathname].includes(role)) {
+    window.location.replace(homePage(role));
+    throw new Error("Page forbidden");
+  }
+  document.querySelectorAll("a[href]").forEach(link => {
+    const allowed = pageRoles[link.getAttribute("href")];
+    if (allowed && !allowed.includes(role)) link.hidden = true;
+    if (role === "SinhVien" && link.getAttribute("href") === "/phi.html")
+      link.textContent = "Hóa đơn của tôi";
+  });
+  const labels = { QuanLy: "Quản lý", KeToan: "Kế toán", SinhVien: "Sinh viên" };
+  const userInfo = document.getElementById("userInfo");
+  if (userInfo) userInfo.title = `Vai trò: ${labels[role]}`;
 }
 
 function logout() {

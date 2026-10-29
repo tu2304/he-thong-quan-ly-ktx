@@ -17,7 +17,7 @@ namespace KtxAI.Api.Services
 
     public class GeminiRateLimitException : Exception { }
 
-    // Chatbot hỏi đáp nội quy KTX bằng AI (Google Gemini) — chức năng AI chính của KT3.
+    // Chatbot hỏi đáp nội quy KTX bằng AI (Gemini) — chức năng AI chính của KT3.
     // Luồng xử lý: tìm điều khoản nội quy liên quan trong CSDL (tiêu chí #5) -> ghép vào
     // prompt cùng câu hỏi -> gọi Gemini API (tiêu chí #2) -> trả lời kèm nguồn trích dẫn (#6).
     public class GeminiChatbotService : IChatbotService
@@ -29,8 +29,9 @@ namespace KtxAI.Api.Services
         private readonly string _systemPrompt;
 
         private const string KHONG_TIM_THAY_NOI_QUY =
-            "Xin lỗi, mình chưa tìm thấy điều khoản nội quy nào liên quan đến câu hỏi này. " +
-            "Bạn vui lòng liên hệ trực tiếp Ban quản lý KTX để được hỗ trợ chính xác.";
+            "Mình chưa có đủ dữ liệu để trả lời câu hỏi này. Bạn có thể hỏi: Tôi đang ở phòng nào? " +
+            "Tôi còn nợ bao nhiêu? Phản ánh của tôi xử lý chưa? Làm sao chuyển phòng? Hoặc hỏi cụ thể về nội quy KTX. " +
+            "Với việc cần xét duyệt, vui lòng liên hệ Ban quản lý.";
 
         public GeminiChatbotService(
             AppDbContext db,
@@ -63,28 +64,24 @@ namespace KtxAI.Api.Services
                 throw new AppException(
                     $"Câu hỏi quá dài (tối đa {_options.MaxQuestionChars} ký tự). Vui lòng hỏi ngắn gọn hơn.", 400);
 
+            var thongTinPhong = await TraCuuPhongTrongAsync(cauHoi);
+            if (thongTinPhong != null) return thongTinPhong;
+
             var lienQuan = await TimNoiQuyLienQuanAsync(cauHoi);
 
-            // Không tìm thấy dữ liệu phù hợp -> trả lời cố định, KHÔNG gọi AI.
-            // Đây là lựa chọn thiết kế có chủ đích: tránh để AI tự suy diễn/bịa nội quy
-            // không tồn tại, đồng thời tiết kiệm lượt gọi API (tiêu chí #5, #7).
+            // A phrasing that misses keyword retrieval still reaches Gemini with bounded,
+            // read-only public context. The model never receives a database query tool.
             if (lienQuan.Count == 0)
-            {
-                return new ChatbotTraLoiDto
-                {
-                    TraLoi = KHONG_TIM_THAY_NOI_QUY,
-                    NguonNoiQuy = new List<string>(),
-                    CoCanhBao = true,
-                    GhiChu = "Không gọi AI vì không có dữ liệu nội quy phù hợp trong CSDL."
-                };
-            }
-
-            var userPrompt = BuildUserPrompt(cauHoi, lienQuan);
+                lienQuan = await _db.NoiQuys.AsNoTracking().OrderBy(n => n.Id).Take(20).ToListAsync();
+            var publicContext = await BuildPublicContextAsync();
+            var userPrompt = BuildUserPrompt(cauHoi, lienQuan) + "\n" + publicContext;
             string aiText;
+            var isAiFallback = false;
 
             if (string.IsNullOrWhiteSpace(_options.ApiKey))
             {
                 _logger.LogWarning("Chưa cấu hình Gemini API key (Gemini__ApiKey trong .env). Dùng phản hồi dựa trên nội quy nội bộ.");
+                isAiFallback = true;
                 aiText = BuildLocalReply(cauHoi, lienQuan);
             }
             else
@@ -96,16 +93,19 @@ namespace KtxAI.Api.Services
                 catch (TaskCanceledException)
                 {
                     _logger.LogWarning("Gemini API timeout sau {Timeout}s.", _options.TimeoutSeconds);
+                    isAiFallback = true;
                     aiText = BuildLocalReply(cauHoi, lienQuan, "AI đang phản hồi chậm, câu trả lời dưới đây dựa trên nội quy hiện có.");
                 }
                 catch (GeminiRateLimitException)
                 {
                     _logger.LogWarning("Gemini API trả về rate limit (429).");
+                    isAiFallback = true;
                     aiText = BuildLocalReply(cauHoi, lienQuan, "Hệ thống AI đang quá tải, câu trả lời dưới đây dựa trên dữ liệu nội quy có sẵn.");
                 }
                 catch (GeminiApiException ex)
                 {
                     _logger.LogError(ex, "Lỗi khi gọi Gemini API. Sử dụng fallback nội bộ.");
+                    isAiFallback = true;
                     aiText = BuildLocalReply(cauHoi, lienQuan, "Dịch vụ AI đang gặp sự cố tạm thời, câu trả lời dưới đây dựa trên nội quy hiện có.");
                 }
             }
@@ -124,18 +124,80 @@ namespace KtxAI.Api.Services
                 };
             }
 
-            var isAiFallback = string.IsNullOrWhiteSpace(_options.ApiKey)
-                || aiText.StartsWith("[Fallback]");
+
 
             return new ChatbotTraLoiDto
             {
                 TraLoi = aiText.Trim(),
-                NguonNoiQuy = lienQuan.Select(n => n.TieuDe).ToList(),
+                NguonNoiQuy = lienQuan.Select(n => n.TieuDe)
+                    .Concat(new[] { "Số liệu công khai trong SQL Server", "Hướng dẫn chức năng hệ thống" }).ToList(),
                 CoCanhBao = isAiFallback,
                 GhiChu = isAiFallback
                     ? "Câu trả lời dựa trên nội quy nội bộ của hệ thống, vì Gemini chưa được cấu hình hoặc đang gặp sự cố."
-                    : "Câu trả lời do AI (Google Gemini) tạo dựa trên nội quy hiện có, chỉ mang tính tham khảo."
+                    : "Câu trả lời do Gemini diễn giải từ nội quy, số liệu công khai và hướng dẫn chức năng của hệ thống."
             };
+        }
+
+        private async Task<ChatbotTraLoiDto> TraCuuPhongTrongAsync(string cauHoi)
+        {
+            var normalized = string.Concat(cauHoi.ToLowerInvariant().Normalize(NormalizationForm.FormD)
+                .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) !=
+                    System.Globalization.UnicodeCategory.NonSpacingMark));
+            if (!System.Text.RegularExpressions.Regex.IsMatch(normalized, @"\b(phong|giuong|toa|tang)\b") ||
+                !System.Text.RegularExpressions.Regex.IsMatch(normalized, @"bao nhieu|may (phong|giuong|toa|tang)|so luong|tong so|con .*khong|con khong"))
+                return null;
+
+            // Only aggregate public availability; never expose occupant or contract data.
+            if (System.Text.RegularExpressions.Regex.IsMatch(normalized, @"\b(toa|tang)\s+[a-z0-9]\b|\d|\b[a-z]+\d+\b"))
+                return new ChatbotTraLoiDto
+                {
+                    TraLoi = "Bạn có thể hỏi tổng số phòng hoặc giường trống của toàn KTX. Để xem theo tòa, tầng hoặc phòng cụ thể, vui lòng mở mục Phòng và dùng bộ lọc.",
+                    NguonNoiQuy = new List<string>(),
+                    CoCanhBao = true,
+                    GhiChu = "Chưa hỗ trợ lọc phòng qua câu hỏi."
+                };
+
+            var rooms = await _db.Phongs.AsNoTracking()
+                .Select(p => new
+                {
+                    p.TrangThai,
+                    Beds = p.Giuongs.Count(),
+                    FreeBeds = p.Giuongs.Count(g => g.TrangThai == TrangThaiGiuong.Trong)
+                }).ToListAsync();
+            var totals = $"Toàn KTX có tổng cộng {rooms.Count} phòng, {rooms.Sum(p => p.Beds)} giường, {await _db.ToaNhas.CountAsync()} tòa nhà và {await _db.Tangs.CountAsync()} tầng.";
+            var available = rooms.Where(p => p.TrangThai == TrangThaiPhong.ConTrong && p.FreeBeds > 0).ToList();
+            var completelyEmpty = available.Count(p => p.Beds == p.FreeBeds);
+            return new ChatbotTraLoiDto
+            {
+                TraLoi = totals + "\n" + $"Hiện toàn KTX có {available.Count} phòng còn chỗ, với tổng cộng {available.Sum(p => p.FreeBeds)} giường trống. " +
+                    $"Trong đó có {completelyEmpty} phòng chưa có người ở. Không tính phòng đầy hoặc đang khóa. " +
+                    "Bạn có thể mở mục Phòng để xem chi tiết.",
+                NguonNoiQuy = new List<string> { "Dữ liệu phòng và giường hiện tại trong hệ thống" },
+                CoCanhBao = false,
+                GhiChu = "Số liệu được truy vấn trực tiếp từ SQL Server tại thời điểm hỏi."
+            };
+        }
+
+        private async Task<string> BuildPublicContextAsync()
+        {
+            var rooms = await _db.Phongs.AsNoTracking().Select(p => new
+            {
+                p.TrangThai,
+                Beds = p.Giuongs.Count(),
+                FreeBeds = p.Giuongs.Count(g => g.TrangThai == TrangThaiGiuong.Trong)
+            }).ToListAsync();
+            var available = rooms.Where(p => p.TrangThai == TrangThaiPhong.ConTrong && p.FreeBeds > 0).ToList();
+            return $"Dữ liệu công khai tại thời điểm hỏi: tổng {rooms.Count} phòng, {rooms.Sum(p => p.Beds)} giường, " +
+                $"{await _db.ToaNhas.CountAsync()} tòa nhà, {await _db.Tangs.CountAsync()} tầng; " +
+                $"{available.Count} phòng còn chỗ, {available.Sum(p => p.FreeBeds)} giường còn chỗ có thể xếp; " +
+                $"{available.Count(p => p.Beds == p.FreeBeds)} phòng hoàn toàn chưa có người ở. Không tính phòng đầy/khóa vào chỗ còn có thể xếp.\n" +
+                "Hướng dẫn nghiệp vụ đã xác nhận: sinh viên xem hóa đơn tại Hóa đơn của tôi; gửi phản ánh tại Phản ánh; " +
+                "xem chỗ trống tại Phòng. Chỉ Quản lý sửa hồ sơ và xếp/chuyển/trả phòng; Quản lý hoặc Kế toán xác nhận đã thu. " +
+                "Sinh viên liên hệ Ban quản lý để đăng ký/chuyển/trả phòng hoặc sửa hồ sơ; liên hệ Kế toán về cách nộp tiền. " +
+                "Chưa có thanh toán trực tuyến, gia hạn hoặc gửi yêu cầu chuyển phòng qua chatbot. " +
+                "Không có dữ liệu về giá phòng mới, lịch làm việc, số điện thoại liên hệ hoặc chính sách ngoài các nội quy đã cung cấp. " +
+                "Không có dữ liệu cá nhân trong ngữ cảnh này. Nếu người dùng hỏi dữ liệu của mình mà chưa được tra cứu, " +
+                "hướng dẫn hỏi Hồ sơ của tôi / Hợp đồng của tôi / Hóa đơn của tôi / Phản ánh của tôi; không suy đoán.";
         }
 
         // Các từ quá phổ biến trong tiếng Việt (hư từ / từ xuất hiện ở gần như mọi điều khoản
@@ -221,80 +283,59 @@ namespace KtxAI.Api.Services
 
         private async Task<string> GoiGeminiAsync(string userPrompt)
         {
-            // Lưu ý (phát hiện khi test thật với key mới tạo từ AI Studio): key kiểu mới của
-            // Google không được API chấp nhận khi gửi qua query string "?key=..." nữa (Google
-            // trả 401 "ACCESS_TOKEN_TYPE_UNSUPPORTED" dù key đúng) — phải gửi qua HTTP header
-            // "x-goog-api-key" theo hướng dẫn hiện hành của Google. Cách này còn tốt hơn cho
-            // bảo vệ key (tiêu chí #2): key không còn nằm trong URL nên không bị lộ qua log
-            // truy cập/URL của client HTTP.
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_options.Model}:generateContent";
-
-            var body = new
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_options.TimeoutSeconds));
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(_options.Model)}:generateContent");
+            request.Headers.Add("x-goog-api-key", _options.ApiKey);
+            request.Content = new StringContent(JsonSerializer.Serialize(new
             {
                 systemInstruction = new { parts = new[] { new { text = _systemPrompt } } },
-                contents = new[]
-                {
-                    new { role = "user", parts = new[] { new { text = userPrompt } } }
-                },
-                generationConfig = new { temperature = 0.2, maxOutputTokens = 300 }
-            };
-
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_options.TimeoutSeconds));
-            using var req = new HttpRequestMessage(HttpMethod.Post, url)
-            {
-                Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
-            };
-            req.Headers.Add("x-goog-api-key", _options.ApiKey);
-
-            HttpResponseMessage res;
-            try
-            {
-                res = await _http.SendAsync(req, cts.Token);
-            }
-            catch (HttpRequestException ex)
-            {
-                // Lỗi kết nối (DNS, mất mạng, bị chặn...) — không để lộ URL/API key ra ngoài,
-                // chỉ log nội bộ và trả lỗi chung cho client (tiêu chí #2 bảo vệ key, #7 xử lý lỗi).
-                _logger.LogError(ex, "Không thể kết nối tới Gemini API.");
-                throw new GeminiApiException("Không thể kết nối tới dịch vụ AI. Vui lòng kiểm tra kết nối mạng và thử lại.", ex);
-            }
-
-            var raw = await res.Content.ReadAsStringAsync();
-
-            if (res.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                throw new GeminiRateLimitException();
-
-            if (!res.IsSuccessStatusCode)
-                throw new GeminiApiException($"Gemini trả về mã lỗi {(int)res.StatusCode}: {raw}");
+                contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
+                generationConfig = new { maxOutputTokens = _options.MaxOutputTokens }
+            }), Encoding.UTF8, "application/json");
 
             try
             {
-                using var doc = JsonDocument.Parse(raw);
+                using var response = await _http.SendAsync(request, cts.Token);
+                if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                    throw new GeminiRateLimitException();
+                if (!response.IsSuccessStatusCode)
+                    throw new GeminiApiException($"Gemini trả về mã lỗi {(int)response.StatusCode}.");
 
-                if (!doc.RootElement.TryGetProperty("candidates", out var candidates) ||
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cts.Token));
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("candidates", out var candidates) ||
                     candidates.ValueKind != JsonValueKind.Array || candidates.GetArrayLength() == 0)
-                    return "";
+                    throw new GeminiApiException("Gemini không trả về câu trả lời.");
+                var candidate = candidates[0];
+                if (!candidate.TryGetProperty("finishReason", out var finish) || finish.GetString() != "STOP")
+                    throw new GeminiApiException("Gemini chưa hoàn thành câu trả lời.");
+                if (!candidate.TryGetProperty("content", out var content) ||
+                    !content.TryGetProperty("parts", out var parts) || parts.ValueKind != JsonValueKind.Array)
+                    throw new GeminiApiException("Gemini trả về dữ liệu không hợp lệ.");
 
-                var firstCandidate = candidates.EnumerateArray().First();
-                if (!firstCandidate.TryGetProperty("content", out var contentEl) ||
-                    !contentEl.TryGetProperty("parts", out var parts) ||
-                    parts.ValueKind != JsonValueKind.Array || parts.GetArrayLength() == 0)
-                    return "";
-
-                // Gemini có thể trả câu trả lời chia thành NHIỀU đoạn (parts) — trước đây code
-                // chỉ lấy đoạn đầu tiên nên câu trả lời bị cắt cụt giữa câu/giữa từ (phát hiện
-                // qua kiểm thử thật). Ghép toàn bộ các đoạn lại để có câu trả lời đầy đủ.
-                var sbText = new StringBuilder();
+                var text = new StringBuilder();
                 foreach (var part in parts.EnumerateArray())
                 {
-                    if (part.TryGetProperty("text", out var partTextEl))
-                        sbText.Append(partTextEl.GetString() ?? "");
+                    if (part.TryGetProperty("thought", out var thought) && thought.ValueKind == JsonValueKind.True)
+                        continue;
+                    if (part.TryGetProperty("text", out var partText))
+                        text.Append(partText.GetString());
                 }
-                return sbText.ToString();
+                if (text.Length == 0)
+                    throw new GeminiApiException("Gemini không trả về nội dung văn bản.");
+                return text.ToString().Trim();
             }
-            catch (JsonException ex)
+            catch (HttpRequestException)
             {
-                throw new GeminiApiException("Không đọc được phản hồi (JSON không hợp lệ) từ Gemini API.", ex);
+                throw new GeminiApiException("Không thể kết nối tới dịch vụ Gemini.");
+            }
+            catch (JsonException)
+            {
+                throw new GeminiApiException("Không đọc được phản hồi JSON từ Gemini.");
+            }
+            catch (InvalidOperationException)
+            {
+                throw new GeminiApiException("Gemini trả về định dạng dữ liệu không hợp lệ.");
             }
         }
     }

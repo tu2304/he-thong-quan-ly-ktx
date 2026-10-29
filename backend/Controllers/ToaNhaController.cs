@@ -10,7 +10,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/toanha")]
-    [Authorize] // Bắt buộc đăng nhập; chỉ Quản lý mới được thêm/sửa/xóa (kiểm tra ở từng action)
+    [Authorize(Roles = "QuanLy,KeToan,SinhVien")] // Bắt buộc đăng nhập; chỉ Quản lý mới được thêm/sửa/xóa (kiểm tra ở từng action)
     public class ToaNhaController : ControllerBase
     {
         private readonly AppDbContext _db;

@@ -31,6 +31,10 @@ async function loadDashboard() {
     }
   }
 
+  if (user?.vaiTro !== "QuanLy") {
+    document.getElementById("tblNhomVanDe")?.closest(".row")?.setAttribute("hidden", "");
+    return;
+  }
   try {
     const res2 = await apiFetch("/thongke/phananh-theo-nhom");
     const tbody = document.querySelector("#tblNhomVanDe tbody");

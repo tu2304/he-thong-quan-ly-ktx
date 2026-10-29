@@ -10,7 +10,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/phong")]
-    [Authorize]
+    [Authorize(Roles = "QuanLy,KeToan,SinhVien")]
     public class PhongController : ControllerBase
     {
         private readonly AppDbContext _db;

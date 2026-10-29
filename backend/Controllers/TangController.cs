@@ -10,7 +10,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/tang")]
-    [Authorize]
+    [Authorize(Roles = "QuanLy,KeToan,SinhVien")]
     public class TangController : ControllerBase
     {
         private readonly AppDbContext _db;

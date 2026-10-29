@@ -23,6 +23,8 @@ namespace KtxAI.Api.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Phi>().Property(x => x.SoTien).HasPrecision(18, 2);
+
             // Lưu enum dưới dạng chuỗi cho dễ đọc trực tiếp trong DB khi demo
             modelBuilder.Entity<NguoiDung>().Property(x => x.VaiTro).HasConversion<string>();
             modelBuilder.Entity<SinhVien>().Property(x => x.GioiTinh).HasConversion<string>();

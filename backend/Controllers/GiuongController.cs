@@ -10,7 +10,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/giuong")]
-    [Authorize]
+    [Authorize(Roles = "QuanLy,KeToan,SinhVien")]
     public class GiuongController : ControllerBase
     {
         private readonly AppDbContext _db;

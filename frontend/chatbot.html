@@ -41,18 +41,26 @@
       <div class="chat-banner">
         <div class="bot-avatar"><i class="bi bi-robot"></i></div>
         <div>
-          <h4>Hỏi đáp Nội quy KTX (AI)</h4>
-          <p>Trợ lý AI trả lời dựa trên nội quy hiện có của KTX. Câu trả lời chỉ mang tính tham khảo — với các trường hợp cần xử lý cụ thể, vui lòng liên hệ trực tiếp Ban quản lý KTX.</p>
+          <h4>Hỏi đáp KTX (AI)</h4>
+          <p>Hỏi về hồ sơ, phòng ở, hợp đồng, hóa đơn và phản ánh của bạn; hướng dẫn thủ tục và giải đáp nội quy KTX. Thao tác thay đổi dữ liệu cần thực hiện tại chức năng tương ứng hoặc liên hệ Ban quản lý.</p>
         </div>
       </div>
 
+      <div id="studentSuggestions" class="d-flex flex-wrap gap-2 p-3 border-bottom" aria-label="Câu hỏi gợi ý">
+        <button type="button" class="btn btn-sm btn-outline-primary" data-question="Tôi đang ở phòng nào?">Phòng của tôi</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-question="Tôi còn nợ bao nhiêu tiền?">Hóa đơn của tôi</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-question="Hợp đồng của tôi thế nào?">Hợp đồng</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-question="Phản ánh của tôi xử lý chưa?">Phản ánh</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-question="Làm sao để chuyển phòng?">Chuyển phòng</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-question="Hồ sơ của tôi">Hồ sơ</button>
+      </div>
       <div id="chatWindow"></div>
 
       <div id="chatLoading" class="text-muted small"><i class="bi bi-three-dots"></i> AI đang trả lời...</div>
 
       <form id="chatForm" class="chat-input-bar d-flex gap-2">
         <input type="text" class="form-control" id="chatInput" maxlength="500"
-               placeholder="Nhập câu hỏi về nội quy KTX, ví dụ: Giờ giới nghiêm là mấy giờ?" required>
+               placeholder="Ví dụ: Còn bao nhiêu phòng trống? Giờ giới nghiêm là mấy giờ?" required>
         <button type="submit" class="btn btn-primary" id="btnSend"><i class="bi bi-send me-1"></i>Gửi</button>
       </form>
     </div>

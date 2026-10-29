@@ -62,6 +62,7 @@ namespace KtxAI.Api.Controllers
 
         // GET /api/thongke/phananh-theo-nhom — dữ liệu vẽ biểu đồ phân loại phản ánh
         [HttpGet("phananh-theo-nhom")]
+        [Authorize(Roles = "QuanLy")]
         public async Task<IActionResult> PhanAnhTheoNhom()
         {
             var data = await _db.PhanAnhs

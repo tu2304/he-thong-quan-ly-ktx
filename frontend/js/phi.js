@@ -184,7 +184,10 @@ if (isSinhVien) {
   document.getElementById("fKeyword").closest(".col-md-3").style.display = "none";
   document.getElementById("fLoaiPhi").closest(".col-md-3").style.display = "none";
 }
-if (!canCreateInvoice) document.getElementById("invoiceModal").remove();
+if (!canCreateInvoice) {
+  document.getElementById("btnCreateInvoice").hidden = true;
+  document.getElementById("invoiceModal").remove();
+}
 
 document.getElementById("btnRefresh").addEventListener("click", () => {
   state.page = 1;

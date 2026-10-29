@@ -9,7 +9,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/noiquy")]
-    [Authorize]
+    [Authorize(Roles = "QuanLy,KeToan,SinhVien")]
     public class NoiQuyController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -18,7 +18,6 @@ namespace KtxAI.Api.Controllers
         // GET /api/noiquy?keyword=giờ giới nghiêm — tìm kiếm nội quy theo từ khóa (tiêu chí #4)
         // Đây cũng là dữ liệu nguồn cho chatbot AI sẽ tích hợp ở KT3.
         [HttpGet]
-        [AllowAnonymous]
         public async Task<IActionResult> GetAll([FromQuery] string keyword)
         {
             var query = _db.NoiQuys.AsQueryable();
@@ -30,7 +29,6 @@ namespace KtxAI.Api.Controllers
         }
 
         [HttpGet("{id}")]
-        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var nq = await _db.NoiQuys.FindAsync(id);

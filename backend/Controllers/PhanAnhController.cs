@@ -10,7 +10,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/phananh")]
-    [Authorize]
+    [Authorize(Roles = "QuanLy,SinhVien")]
     public class PhanAnhController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -48,8 +48,8 @@ namespace KtxAI.Api.Controllers
             var vaiTro = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
             if (vaiTro == VaiTro.SinhVien.ToString())
             {
-                var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-                var svHienTai = await _db.SinhViens.Include(sv => sv.NguoiDung).FirstOrDefaultAsync(sv => sv.NguoiDung.Email == email);
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var svHienTai = await _db.SinhViens.Include(sv => sv.NguoiDung).FirstOrDefaultAsync(sv => sv.NguoiDungId.ToString() == userId);
                 if (svHienTai == null) throw AppException.Forbidden("Không xác định được hồ sơ sinh viên của tài khoản này.");
                 query = query.Where(pa => pa.SinhVienId == svHienTai.Id);
             }
@@ -93,6 +93,9 @@ namespace KtxAI.Api.Controllers
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (pa == null) throw AppException.NotFound($"Không tìm thấy phản ánh có id = {id}.");
+            if (User.IsInRole("SinhVien") && pa.SinhVien.NguoiDungId.ToString() !=
+                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+                throw AppException.NotFound("Không tìm thấy phản ánh.");
             return Ok(ApiResponse<PhanAnhResponseDto>.Ok(ToDto(pa)));
         }
 
@@ -104,12 +107,12 @@ namespace KtxAI.Api.Controllers
 
             if (vaiTro == VaiTro.SinhVien.ToString())
             {
-                var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 sv = await _db.SinhViens
                     .Include(x => x.NguoiDung)
                     .Include(x => x.HopDongs)
                         .ThenInclude(x => x.Giuong)
-                    .FirstOrDefaultAsync(x => x.NguoiDung.Email == email);
+                    .FirstOrDefaultAsync(x => x.NguoiDungId.ToString() == userId);
 
                 if (sv == null)
                     throw AppException.Forbidden("Tài khoản chưa có hồ sơ sinh viên tương ứng.");

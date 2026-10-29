@@ -21,10 +21,10 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     Args = args,
     WebRootPath = Directory.Exists(frontendPath) ? frontendPath : "wwwroot"
 });
-// ---------- Cấu hình DbContext (SQLite) ----------
+// ---------- Cấu hình DbContext (SQL Server) ----------
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=ktxai.db";
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+    ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection cho SQL Server.");
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 
 // ---------- JWT Authentication ----------
 var jwtKey = builder.Configuration["Jwt:Key"];
@@ -60,6 +60,23 @@ builder.Services.AddAuthentication(options =>
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var id = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var role = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+                if (!int.TryParse(id, out var userId))
+                {
+                    context.Fail("Tài khoản không hợp lệ.");
+                    return;
+                }
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var user = await db.NguoiDungs.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+                if (user == null || !user.DangHoatDong || user.VaiTro.ToString() != role)
+                    context.Fail("Tài khoản hoặc quyền đã thay đổi. Vui lòng đăng nhập lại.");
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -84,9 +101,10 @@ builder.Services.AddCors(options =>
 // ---------- Services ----------
 builder.Services.AddScoped<IJwtService, JwtService>();
 
-// ---------- Chatbot AI (Google Gemini) — KT3 ----------
+// ---------- Chatbot AI (Gemini) — KT3 ----------
 builder.Services.Configure<GeminiOptions>(builder.Configuration.GetSection("Gemini"));
 builder.Services.AddHttpClient<IChatbotService, GeminiChatbotService>();
+builder.Services.AddScoped<StudentChatbotService>();
 
 // Lỗi 400 "Đã có lỗi xảy ra" khi Thêm sinh viên / Cập nhật trạng thái phản ánh:
 // mặc định System.Text.Json đọc/ghi enum (GioiTinh, TrangThaiPhanAnh, ...) dưới dạng SỐ

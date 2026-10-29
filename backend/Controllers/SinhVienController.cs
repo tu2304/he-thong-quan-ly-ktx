@@ -11,7 +11,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/sinhvien")]
-    [Authorize]
+    [Authorize(Roles = "QuanLy,KeToan,SinhVien")]
     public class SinhVienController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -33,6 +33,7 @@ namespace KtxAI.Api.Controllers
         // GET /api/sinhvien?keyword=&lop=&sortBy=hoten&sortDir=asc&page=1&pageSize=20
         // Tiêu chí KT2 #4: tìm kiếm/lọc/sắp xếp.
         [HttpGet]
+        [Authorize(Roles = "QuanLy")]
         public async Task<IActionResult> GetAll(
             [FromQuery] string keyword,
             [FromQuery] string lop,
@@ -84,6 +85,7 @@ namespace KtxAI.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Roles = "QuanLy")]
         public async Task<IActionResult> GetById(int id)
         {
             var sv = await _db.SinhViens.Include(x => x.NguoiDung).FirstOrDefaultAsync(x => x.Id == id);
@@ -100,10 +102,11 @@ namespace KtxAI.Api.Controllers
         // Đặt route literal "me" — ASP.NET Core luôn ưu tiên khớp đoạn literal trước đoạn tham số "{id}",
         // nên endpoint này không bị nhầm với GetById(int id) dù khai báo sau.
         [HttpGet("me")]
+        [Authorize(Roles = "SinhVien")]
         public async Task<IActionResult> GetMe()
         {
-            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-            var sv = await _db.SinhViens.Include(x => x.NguoiDung).FirstOrDefaultAsync(x => x.NguoiDung.Email == email);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var sv = await _db.SinhViens.Include(x => x.NguoiDung).FirstOrDefaultAsync(x => x.NguoiDungId.ToString() == userId);
             if (sv == null) throw AppException.NotFound("Tài khoản hiện tại không có hồ sơ sinh viên tương ứng.");
 
             var hopDong = await _db.HopDongs

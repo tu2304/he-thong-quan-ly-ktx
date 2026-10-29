@@ -10,7 +10,7 @@ namespace KtxAI.Api.Controllers
 {
     [ApiController]
     [Route("api/phi")]
-    [Authorize]
+    [Authorize(Roles = "QuanLy,KeToan,SinhVien")]
     public class PhiController : ControllerBase
     {
         private readonly AppDbContext _db;
@@ -85,9 +85,9 @@ namespace KtxAI.Api.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             var sinhVien = await _db.SinhViens
-                .FirstOrDefaultAsync(sv => sv.NguoiDung.Email == email);
+                .FirstOrDefaultAsync(sv => sv.NguoiDungId.ToString() == userId);
             if (sinhVien == null) throw AppException.Forbidden("Tài khoản chưa có hồ sơ sinh viên.");
 
             var query = _db.Phis
