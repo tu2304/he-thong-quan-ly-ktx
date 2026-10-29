@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KtxAI.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+13a82769b6c2566d4c3901bca22f518a1a988608")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0798397a6a9ec3b2719514ef24563dad2bb0a99b")]
 [assembly: System.Reflection.AssemblyProductAttribute("KtxAI.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KtxAI.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
