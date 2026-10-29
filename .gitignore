@@ -1,0 +1,16 @@
+# IDE and generated build files
+.vs/
+**/bin/
+**/obj/
+publish/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# SQLite data and temporary journals
+*.db
+*.db-shm
+*.db-wal
+

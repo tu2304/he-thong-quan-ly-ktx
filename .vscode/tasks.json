@@ -10,8 +10,9 @@
                 "--launch-profile",
                 "KtxAI.Api",
                 "--project",
-                "${workspaceFolder}/KtxAI.Api.csproj"
+                "${workspaceFolder}/backend/KtxAI.Api.csproj"
             ],
+            "options": { "cwd": "${workspaceFolder}/backend" },
             "isBackground": true,
             "problemMatcher": {
                 "owner": "custom",
