@@ -24,6 +24,8 @@ he-thong-quan-ly-ktx/
 │   ├── css/
 │   ├── js/
 │   └── *.html
+├── database/
+│   └── ktxai.sql           # Cấu trúc và dữ liệu xuất từ SQLite
 ├── .vscode/                # Cấu hình chạy/debug trong VS Code
 ├── .gitignore
 └── README.md
@@ -69,6 +71,19 @@ Các tài khoản mẫu khi tạo mới cơ sở dữ liệu:
 | Quản lý | `quanly@ktx.edu.vn` | `QuanLy@123` |
 | Kế toán | `ketoan@ktx.edu.vn` | `KeToan@123` |
 | Sinh viên | `an.le@sv.edu.vn` | `SinhVien@123` |
+
+## File cơ sở dữ liệu
+
+File `database/ktxai.sql` chứa cấu trúc bảng, khóa ngoại, chỉ mục và dữ liệu được xuất từ cơ sở dữ liệu hiện có của hệ thống. File dùng cho **SQLite**, bao gồm 11 bảng nghiệp vụ và mật khẩu tài khoản dưới dạng hash.
+
+Để khôi phục, cài công cụ dòng lệnh `sqlite3`, dừng ứng dụng và chạy từ thư mục gốc. Nếu `backend/ktxai.db` đã tồn tại, sao lưu rồi chuyển file đó cùng các file `-wal`/`-shm` còn lại ra nơi khác trước khi nhập; script dùng để tạo cơ sở dữ liệu mới, không gộp vào dữ liệu cũ.
+
+```powershell
+sqlite3 backend/ktxai.db ".read database/ktxai.sql"
+sqlite3 backend/ktxai.db "PRAGMA integrity_check;"
+```
+
+Kết quả kiểm tra hợp lệ là `ok`. Sau đó chạy backend như hướng dẫn ở trên. File SQL là bản chụp dữ liệu tại thời điểm xuất, không tự cập nhật theo ứng dụng.
 
 ## Chức năng
 
